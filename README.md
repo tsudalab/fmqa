@@ -81,3 +81,21 @@ plt.ylim([-1.0,1.0])
 ![image](https://user-images.githubusercontent.com/15908202/64800217-205ed100-d5c1-11e9-8d29-b2d13bcb0e53.png)
 
 We can see that the sampler is trying to take near optimal binary array.
+
+## License
+
+The fmbqm package is licensed under the MIT "Expat" License.
+
+## Citation
+
+If you use this package in your work, please cite:
+
+```
+@article{kitai2019expanding,
+  title={Expanding the horizon of automated metamaterials discovery via quantum annealing},
+  author={Koki Kitai and Jiang Guo and Shenghong Ju and Shu Tanaka and Koji Tsuda and Junichiro Shiomi and Ryo Tamura},
+  journal={arXiv preprint arXiv:1902.06573},
+  year={2019}
+}
+```
+
