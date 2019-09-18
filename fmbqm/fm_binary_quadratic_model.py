@@ -32,7 +32,13 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         init_quadratic  = {}
         init_offset = 0.0
         super().__init__(init_linear,  init_quadratic, init_offset, vartype, **kwargs)
-        self.fm = FactorizationMachine(input_size, act="identity", **kwargs)
+        self.fm = FactorizationMachine(input_size, act=act, **kwargs)
+
+    def to_qubo(self):
+        return self._fm_to_qubo()
+
+    def to_ising(self):
+        return self._fm_to_ising()
 
     @classmethod
     def from_data(cls, x, y, act="identity", num_epoch=1000, learning_rate=1.0e-2, **kwargs):
@@ -63,8 +69,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
 
         input_size = x.shape[-1]
         fmbqm = cls(input_size, vartype, act, **kwargs)
-        fmbqm.fm.init_params()
-        fmbqm.train(x, y, num_epoch, learning_rate)
+        fmbqm.train(x, y, num_epoch, learning_rate, init=True)
         return fmbqm
 
     def train(self, x, y, num_epoch=1000, learning_rate=1.0e-2, init=False):
@@ -83,26 +88,9 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
                 Initialize or not before training.
         """
         if init:
-            self.init_params()
-        if self.vartype == Vartype.BINARY:
-            x = x * 2 - 1
-        if not np.all((1 == x) | (-1 == x)):
-            raise ValueError("input data should be of type", self.vartype)
+            self.fm.init_params()
+        self._check_vartype(x)
         self.fm.train(x, y, num_epoch, learning_rate)
-        if self.vartype == Vartype.SPIN:
-            h, J, b = self._fm_to_ising()
-            self.offset = b
-            for i in range(self.fm.input_size):
-                self.linear[i] = h[i]
-                for j in range(i+1, self.fm.input_size):
-                    self.quadratic[(i,j)] = J[(i,j)]
-        elif self.vartype == Vartype.BINARY:
-            Q, b = self._fm_to_qubo()
-            self.offset = b
-            for i in range(self.fm.input_size):
-                self.linear[i] = Q[(i,i)]
-                for j in range(i+1, self.fm.input_size):
-                    self.quadratic[(i,j)] = Q[(i,j)]
 
     def predict(self, x):
         """Predict target value by trained model.
@@ -114,15 +102,19 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         Returns:
             :obj:`numppy.ndarray`: Predicted values.
         """
-        if self.vartype == Vartype.BINARY:
-            x = nd.array(x)*2-1
-        else:
-            x = nd.array(x)
+        self._check_vartype(x)
+        x = nd.array(x)
         if len(x.shape) == 1:
             x = nd.expand_dims(x, axis=0)
         return self.fm(x).asnumpy()
 
-    def _fm_to_ising(self, scaling=False):
+    def _check_vartype(self, x):
+        if (self.vartype is Vartype.BINARY) and np.all((1 == x) | (0 == x)) or \
+           (self.vartype is Vartype.SPIN) and np.all((1 == x) | (-1 == x)):
+            return
+        raise ValueError("input data should be of type", self.vartype)
+
+    def _fm_to_ising(self, scaling=True):
         """Convert trained model into Ising parameters.
 
         Args:
@@ -131,7 +123,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
 
         """
         b, h, J = self.fm.get_bhQ()
-        if self.input_type is Vartype.BINARY:
+        if self.vartype is Vartype.BINARY:
             b = b + np.sum(h)/2 + np.sum(J)/4
             h = (2*h + np.sum(J, axis=0) + np.sum(J, axis=1))/4.0
             J = J/4.0
