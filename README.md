@@ -1,9 +1,21 @@
 # fmbqm
-This fmbqm package expands the application of annealers.
+The fmbqm package provides a trainable binary quadratic model `FMBQM`.
+In combination with annealing solvers, it enables optimization of
+a black-box function in a data-driven way.
+This could expand the application of annealing solvers.
 
-`fmbqm.FMBQM` class inherits from [`dimod.BQM`](https://docs.ocean.dwavesys.com/projects/dimod/en/latest/reference/bqm/binary_quadratic_model.html#dimod.BinaryQuadraticModel)
-and its parameters are trained on data provided by users. So when considering a minimization task,
-it does not expect the target function to have an equivalent representation as an Ising or QUBO model.
+A common way of solving a combinatorial optimization problem is to encode
+the objective function into a binary quadratic model (BQM),
+where the user has to set parameters of the BQM beforehand.
+However, our `fmbqm.FMBQM` class can automatically learn the parameters based
+on a dataset provided by users.
+This is an ideal approach when the user can evaluate the objective function
+on any given input, but has no knowledge about the analytical form of it.
+
+The `FMBQM` class inherits from [`dimod.BQM`](https://docs.ocean.dwavesys.com/projects/dimod/en/latest/reference/bqm/binary_quadratic_model.html#dimod.BinaryQuadraticModel)
+of D-Wave Ocean Tools, so the basic usage of `FMBQM` has many in common with that of `BQM`.
+For the functions specific to `FMBQM`, such as how to train the model,
+please refer to the example code below.
 
 ## Install
 On the root of the project, run
@@ -13,8 +25,7 @@ $ python setup.py install
 ```
 
 ## Example
-
-We try to minimize a function:
+For an example use of the package, we try to minimize this function:
 
 ```python
 def two_complement(x, scaling=True):
@@ -45,31 +56,32 @@ xs = np.random.randint(2, size=(5,16))
 ys = np.array([two_complement(x) for x in xs])
 ```
 
-Based on the dataset, train a FMBQM.
+Based on the dataset, train a FMBQM model.
 
 ```python
 import fmbqm
 model = fmbqm.FMBQM.from_data(xs, ys)
 ```
 
-We use simulated annealing from `dimod` package here, to solve the trained BQM.
+We use simulated annealing from `dimod` package here to solve the trained model.
 
 ```python
 import dimod
 sa_sampler = dimod.samplers.SimulatedAnnealingSampler()
 ```
 
-We repeat taking 3 samples and updating the BQM for 15 times (total: 45 samples).
+We repeat taking 3 samples at once and updating the model for 15 times
+(45 samples taken in total).
 
 ```python
 for _ in range(15):
-    res = sa_sampler.sample_qubo(model.to_qubo()[0], num_reads=3)
+    res = sa_sampler.sample(model, num_reads=3)
     xs = np.r_[xs, res.record['sample']]
     ys = np.r_[ys, [two_complement(x) for x in res.record['sample']]]
     model.train(xs, ys)
 ```
 
-Then, the history of the sampling is plotted like this.
+Then, the history of the sampling looks like this.
 
 ```python
 import matplotlib.pyplot as plt
@@ -80,7 +92,7 @@ plt.ylim([-1.0,1.0])
 ```
 ![image](https://user-images.githubusercontent.com/15908202/64800217-205ed100-d5c1-11e9-8d29-b2d13bcb0e53.png)
 
-We can see that the sampler is trying to take near optimal binary array.
+We can see that the sampling go down to near optimal as the dataset grows.
 
 ## License
 
