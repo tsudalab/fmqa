@@ -6,6 +6,7 @@ import numpy as np
 from mxnet import nd
 from dimod.binary_quadratic_model import BinaryQuadraticModel
 from dimod.vartypes import Vartype, as_vartype
+from dimod import BQM
 
 from .factorization_machine import FactorizationMachine
 
@@ -33,12 +34,6 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         init_offset = 0.0
         super().__init__(init_linear,  init_quadratic, init_offset, vartype, **kwargs)
         self.fm = FactorizationMachine(input_size, act=act, **kwargs)
-
-    def to_qubo(self):
-        return self._fm_to_qubo()
-
-    def to_ising(self):
-        return self._fm_to_ising()
 
     @classmethod
     def from_data(cls, x, y, act="identity", num_epoch=1000, learning_rate=1.0e-2, **kwargs):
@@ -91,6 +86,20 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             self.fm.init_params()
         self._check_vartype(x)
         self.fm.train(x, y, num_epoch, learning_rate)
+        if self.vartype == Vartype.SPIN:
+            h, J, b = self._fm_to_ising()
+            self.offset = b
+            for i in range(self.fm.input_size):
+                self.linear[i] = h[i]
+                for j in range(i+1, self.fm.input_size):
+                    self.quadratic[(i,j)] = J[(i,j)]
+        elif self.vartype == Vartype.BINARY:
+            Q, b = self._fm_to_qubo()
+            self.offset = b
+            for i in range(self.fm.input_size):
+                self.linear[i] = Q[(i,i)]
+                for j in range(i+1, self.fm.input_size):
+                    self.quadratic[(i,j)] = Q[(i,j)]
 
     def predict(self, x):
         """Predict target value by trained model.
