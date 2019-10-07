@@ -35,6 +35,12 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         super().__init__(init_linear,  init_quadratic, init_offset, vartype, **kwargs)
         self.fm = FactorizationMachine(input_size, act=act, **kwargs)
 
+    def to_qubo(self):
+        return self._fm_to_qubo()
+
+    def to_ising(self):
+        return self._fm_to_ising()
+
     @classmethod
     def from_data(cls, x, y, act="identity", num_epoch=1000, learning_rate=1.0e-2, **kwargs):
         """Create a binary quadratic model by FM regression model trained on the provided data.
