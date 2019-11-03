@@ -2,6 +2,10 @@
 Factorization Machine implemented with MXNet Gluon
 """
 
+__all__ = [
+    "FactorizationMachineBinaryQuadraticModel", "FMBQM"
+]
+
 import numpy as np
 import mxnet as mx
 from   mxnet import nd
@@ -58,8 +62,7 @@ class QuadraticLayer(gluon.nn.HybridBlock):
         raise NotImplementedError()
 
 class FactorizationMachine(QuadraticLayer):
-    """
-    Factorization Machine as a neural network layer.
+    """Factorization Machine as a neural network layer.
 
     Args:
         input_size (int):
@@ -86,8 +89,7 @@ class FactorizationMachine(QuadraticLayer):
         self.act = act
 
     def hybrid_forward(self, F, x, h, V, bias):
-        """
-        Forward propagation of FM.
+        """Forward propagation of FM.
 
         Args:
           x: input vector of shape (N, d).
