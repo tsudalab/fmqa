@@ -1,5 +1,5 @@
-# fmbqm
-The fmbqm package provides a trainable binary quadratic model `FMBQM`.
+# fmqa
+The fmqa package provides a trainable binary quadratic model `FMBQM`.
 In combination with annealing solvers, it enables optimization of
 a black-box function in a data-driven way.
 This could expand the application of annealing solvers.
@@ -7,7 +7,7 @@ This could expand the application of annealing solvers.
 A common way of solving a combinatorial optimization problem is to encode
 the objective function into a binary quadratic model (BQM),
 where the user has to set parameters of the BQM beforehand.
-However, our `fmbqm.FMBQM` class can automatically learn the parameters based
+However, our `fmqa.FMBQM` class can automatically learn the parameters based
 on a dataset provided by users.
 This is an ideal approach when the user can evaluate the objective function
 on any given input, but has no knowledge about the analytical form of it.
@@ -59,8 +59,8 @@ ys = np.array([two_complement(x) for x in xs])
 Based on the dataset, train a FMBQM model.
 
 ```python
-import fmbqm
-model = fmbqm.FMBQM.from_data(xs, ys)
+import fmqa
+model = fmqa.FMBQM.from_data(xs, ys)
 ```
 
 We use simulated annealing from `dimod` package here to solve the trained model.
@@ -96,7 +96,7 @@ We can see that the sampling go down to near optimal as the dataset grows.
 
 ## License
 
-The fmbqm package is licensed under the MIT "Expat" License.
+The fmqa package is licensed under the MIT "Expat" License.
 
 ## Citation
 
