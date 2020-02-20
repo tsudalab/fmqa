@@ -89,6 +89,7 @@ plt.plot(ys, 'o')
 plt.xlabel('Selection ID')
 plt.ylabel('value (scaled)')
 plt.ylim([-1.0,1.0])
+plt.show()
 ```
 ![image](https://user-images.githubusercontent.com/15908202/64800217-205ed100-d5c1-11e9-8d29-b2d13bcb0e53.png)
 
