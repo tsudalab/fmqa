@@ -125,7 +125,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         return self._fm_to_ising()
 
     @classmethod
-    def from_data(cls, x, y, act="identity", num_epoch=1000, learning_rate=1.0e-2, **kwargs):
+    def from_data(cls, x, y, act="identity", num_epoch=1000, learning_rate=1.0e-2, schedule=None, **kwargs):
         """Create a binary quadratic model by FM regression model trained on the provided data.
 
         Args:
@@ -153,10 +153,10 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
 
         input_size = x.shape[-1]
         fmbqm = cls(input_size, vartype, act, **kwargs)
-        fmbqm.train(x, y, num_epoch, learning_rate, init=True)
+        fmbqm.train(x, y, num_epoch, learning_rate, schedule=schedule, init=True)
         return fmbqm
 
-    def train(self, x, y, num_epoch=1000, learning_rate=1.0e-2, init=False):
+    def train(self, x, y, num_epoch=1000, learning_rate=1.0e-2, schedule=None, init=False):
         """Train FM regression model on the provided data.
 
         Args:
@@ -174,7 +174,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         if init:
             self.fm.init_params()
         self._check_vartype(x)
-        self.fm.train(x, y, num_epoch, learning_rate)
+        self.fm.train(x, y, num_epoch, learning_rate, schedule=schedule)
         if self.vartype == Vartype.SPIN:
             h, J, b = self._fm_to_ising()
             self.offset = b

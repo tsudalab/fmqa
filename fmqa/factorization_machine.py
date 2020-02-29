@@ -32,6 +32,7 @@ class QuadraticLayer(gluon.nn.HybridBlock):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.trainer = None
 
     def init_params(self, initializer=mx.init.Normal()):
         """Initialize all parameters
@@ -42,13 +43,17 @@ class QuadraticLayer(gluon.nn.HybridBlock):
         """
         self.initialize(initializer, force_reinit=True)
 
-    def train(self, x, y, num_epoch=100, learning_rate=1.0e-2):
+    def train(self, x, y, num_epoch=1000, learning_rate=1.0e-2, schedule=None):
         """Training of the regression model using Adam optimizer.
         """
         x, y = nd.array(x), nd.array(y)
         batchsize = x.shape[0]
-        if None == self.trainer:
-            self.trainer = gluon.Trainer(self.collect_params(), "adam", {"learning_rate": learning_rate})
+        if None == self.trainer or schedule is not None:
+            if schedule is not None:
+                adam = mx.optimizer.Adam(lr_scheduler=schedule)
+            else:
+                adam = mx.optimizer.Adam(learning_rate)
+            self.trainer = gluon.Trainer(self.collect_params(), adam)
         else:
             self.trainer.set_learning_rate(learning_rate)
         for epoch in range(num_epoch):
