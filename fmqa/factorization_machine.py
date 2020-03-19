@@ -132,7 +132,8 @@ class SparseFactorizationMachine(FactorizationMachine):
         adjmask = np.zeros((input_size, input_size))
         for e in edgelist:
             a,b = e
-            adjmask[a,b] = adjmask[b,a] = 1
+            if a < input_size and b < input_size:
+                adjmask[a,b] = adjmask[b,a] = 1
         self.adjmask = mx.nd.array(adjmask)
 
     def hybrid_forward(self, F, x, h, V, bias):
