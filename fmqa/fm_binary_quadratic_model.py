@@ -9,7 +9,7 @@ from dimod.vartypes import Vartype, as_vartype
 from dimod import BQM
 from itertools import combinations
 
-from .factorization_machine import FactorizationMachine
+from .factorization_machine import FactorizationMachine, SparseFactorizationMachine
 
 __all__ = [
     "mergeBQM",
@@ -109,14 +109,16 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             Name of activation function applied on FM output: "identity", "sigmoid", or "tanh".
     """
 
-    def __init__(self, input_size, vartype, act="identity", **kwargs):
+    def __init__(self, input_size, vartype, act="identity", edgelist=[], **kwargs):
         # Initialization of BQM
         init_linear = {i: 0.0  for i in range(input_size)}
         init_quadratic  = {}
         init_offset = 0.0
         super().__init__(init_linear,  init_quadratic, init_offset, vartype, **kwargs)
-        self.fm = FactorizationMachine(input_size, act=act, **kwargs)
-        self.constraints = []
+        if len(edgelist) == 0:
+            self.fm = FactorizationMachine(input_size, act=act, **kwargs)
+        else:
+            self.fm = SparseFactorizationMachine(input_size, act=act, edgelist=edgelist, **kwargs)
 
     def to_qubo(self):
         return self._fm_to_qubo()

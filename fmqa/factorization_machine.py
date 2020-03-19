@@ -54,7 +54,7 @@ class QuadraticLayer(gluon.nn.HybridBlock):
             else:
                 adam = mx.optimizer.Adam(learning_rate)
             self.trainer = gluon.Trainer(self.collect_params(), adam)
-        else:
+        elif self.trainer.lr_scheduler is None:
             self.trainer.set_learning_rate(learning_rate)
         for epoch in range(num_epoch):
             with mx.autograd.record():
@@ -114,3 +114,46 @@ class FactorizationMachine(QuadraticLayer):
         V = nd.zeros(self.V.shape) if self.factorization_size is 0 else self.V.data()
         return self.bias.data().asscalar(), self.h.data().asnumpy(), VtoQ(V, nd).asnumpy()
 
+class SparseFactorizationMachine(FactorizationMachine):
+    """Factorization Machine as a neural network layer.
+
+    Args:
+        input_size (int):
+            The dimension of input value.
+        factorization_size (int (<=input_size)):
+            The rank of decomposition of interaction terms.
+        act (string, optional):
+            Name of activation function applied on FM output: "identity", "sigmoid", or "tanh". (default="identity")
+        **kwargs:
+    """
+
+    def __init__(self, input_size, factorization_size=8, act="identity", edgelist=[], **kwargs):
+        super().__init__(input_size, factorization_size, act, **kwargs)
+        adjmask = np.zeros((input_size, input_size))
+        for e in edgelist:
+            a,b = e
+            adjmask[a,b] = adjmask[b,a] = 1
+        self.adjmask = mx.nd.array(adjmask)
+
+    def hybrid_forward(self, F, x, h, V, bias):
+        """Forward propagation of FM.
+
+        Args:
+          x: input vector of shape (N, d).
+          h: linear coefficient of lenth d.
+          V: matrix of shape (k, d).
+        """
+        if self.factorization_size <= 0:
+            return bias + F.dot(x, h)
+        Q = VtoQ(V, F) # (d,d)
+        Q *= self.adjmask
+        Qx = F.FullyConnected(x, weight=Q, bias=None, no_bias=True, num_hidden=self.input_size)
+        act = {"identity": F.identity, "sigmoid": F.sigmoid, "tanh": F.tanh}[self.act]
+        return act(bias + F.dot(x, h) +  F.sum(x*Qx, axis=1))
+
+    def get_bhQ(self):
+        """Returns linear and quadratic coefficients.
+        """
+        V = nd.zeros(self.V.shape) if self.factorization_size is 0 else self.V.data()
+        Q = VtoQ(V, nd) * self.adjmask
+        return self.bias.data().asscalar(), self.h.data().asnumpy(), Q.asnumpy()
