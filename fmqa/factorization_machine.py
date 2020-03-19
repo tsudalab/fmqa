@@ -134,7 +134,7 @@ class SparseFactorizationMachine(FactorizationMachine):
             a,b = e
             if a < input_size and b < input_size:
                 adjmask[a,b] = adjmask[b,a] = 1
-        self.adjmask = mx.nd.array(adjmask)
+        self.adjmask = adjmask
 
     def hybrid_forward(self, F, x, h, V, bias):
         """Forward propagation of FM.
@@ -147,7 +147,7 @@ class SparseFactorizationMachine(FactorizationMachine):
         if self.factorization_size <= 0:
             return bias + F.dot(x, h)
         Q = VtoQ(V, F) # (d,d)
-        Q *= self.adjmask
+        Q = Q * mx.nd.array(self.adjmask)
         Qx = F.FullyConnected(x, weight=Q, bias=None, no_bias=True, num_hidden=self.input_size)
         act = {"identity": F.identity, "sigmoid": F.sigmoid, "tanh": F.tanh}[self.act]
         return act(bias + F.dot(x, h) +  F.sum(x*Qx, axis=1))
@@ -156,5 +156,5 @@ class SparseFactorizationMachine(FactorizationMachine):
         """Returns linear and quadratic coefficients.
         """
         V = nd.zeros(self.V.shape) if self.factorization_size is 0 else self.V.data()
-        Q = VtoQ(V, nd) * self.adjmask
+        Q = VtoQ(V, nd) * mx.nd.array(self.adjmask)
         return self.bias.data().asscalar(), self.h.data().asnumpy(), Q.asnumpy()
