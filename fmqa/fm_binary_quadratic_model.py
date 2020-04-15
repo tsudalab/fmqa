@@ -7,13 +7,95 @@ from mxnet import nd
 from dimod.binary_quadratic_model import BinaryQuadraticModel
 from dimod.vartypes import Vartype, as_vartype
 from dimod import BQM
+from itertools import combinations
 
 from .factorization_machine import FactorizationMachine
 
 __all__ = [
+    "mergeBQM",
+    "BitConstraintBQM",
     "FactorizationMachineBinaryQuadraticModel",
     "FMBQM",
 ]
+
+def mergeBQM(bqms, scales=None):
+    """
+    Merges all BQMs contained in a list.
+    """
+    if scales == None:
+        scales = np.ones(len(bqms))
+    if bqms[0].vartype == Vartype.SPIN:
+        h, J, o = {}, {}, 0.0
+        for bqm, scale in zip(bqms, scales):
+            _h, _J, _o = bqm.to_ising()
+            for k in _h.keys():
+                h[k] = h.get(k, 0.0) + _h[k] * scale
+            for k in _J.keys():
+                J[k] = J.get(k, 0.0) + _J[k] * scale
+            o += _o * scale
+        return BinaryQuadraticModel.from_ising(h, J, o)
+    elif bqms[0].vartype == Vartype.BINARY:
+        Q, o = {}, 0.0
+        for bqm, scale in zip(bqms, scales):
+            _Q, _o = bqm.to_qubo()
+            for k in _Q.keys():
+                Q[k] = Q.get(k, 0.0) + _Q[k] * scale
+            o += _o * scale
+        return BinaryQuadraticModel.from_qubo(Q, o)
+
+class BitConstraintBQM(BinaryQuadraticModel):
+    '''
+
+    Examples:
+    Here demonstrates applying several 2-hot constraint on FMBQM
+    >>> import numpy as np
+    >>> import neal
+    >>> import dimod
+    >>> import fmqa
+    >>> qubo = dimod.BQM.from_qubo(np.array([
+        [1, -1,  0,  1],
+        [0, -1,  0, -1],
+        [0,  0, -1,  0], 
+        [0,  0,  0, -1]
+    ]))
+    >>> sa = neal.SimulatedAnnealingSampler()
+    >>> sa.sample(qubo, num_reads=1)
+    SampleSet(rec.array([([0, 1, 1, 1], -4., 1)], ..., 'BINARY')
+    >>> constraint = fmqa.BitConstraintBQM.n_hot([0,1,2,3], 2)
+    >>> constraint_qubo = fmqa.mergeBQM([qubo, constraint])
+    >>> sa.sample(constraint_qubo, num_reads=1)
+    SampleSet(rec.array([([0, 1, 0, 1], -5., 1)], ..., 'BINARY')
+
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super(BitConstraintBQM, self).__init__(*args, **kwargs)
+
+    @classmethod
+    def n_hot(cls, region, n, vartype="SPIN"):
+        '''
+        Generate a BQM instance encoding n-hot constraint (out of bits listed in region).
+        '''
+        N = len(region)
+        vartype = as_vartype(vartype)
+        assert vartype in [Vartype.SPIN, Vartype.BINARY]
+        assert n >= 0
+        assert N >= n
+        if vartype == Vartype.SPIN:
+            r = 2/(N-2*n) if abs(N-2*n) > 2 else 1.0
+            h = {i: N-2*n * r for i in region}
+            J = {k: 1.0 * r for k in map(tuple, map(sorted, combinations(region, 2)))}
+            return cls.from_ising(h, J)
+        elif vartype == Vartype.BINARY:
+            r = min(1.0/abs(n-0.5), 1.0)
+            Q = {(i, i): (0.5-n) * r for i in region}
+            for k in map(tuple, map(sorted, combinations(region, 2))):
+                Q[k] = 1.0 * r
+            return cls.from_qubo(Q)
+
+    @classmethod
+    def one_hot(cls, region, vartype="SPIN"):
+        return cls.n_hot(region, 1, vartype)
 
 class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
     """FMBQM: Trainable BQM based on Factorization Machine
@@ -34,6 +116,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         init_offset = 0.0
         super().__init__(init_linear,  init_quadratic, init_offset, vartype, **kwargs)
         self.fm = FactorizationMachine(input_size, act=act, **kwargs)
+        self.constraints = []
 
     def to_qubo(self):
         return self._fm_to_qubo()
