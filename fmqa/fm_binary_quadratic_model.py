@@ -20,7 +20,7 @@ __all__ = [
 
 def mergeBQM(bqms, scales=None):
     """
-    Merges all BQMs contained in a list.
+    Merge all BQMs contained in a list.
     """
     if scales == None:
         scales = np.ones(len(bqms))
@@ -47,7 +47,7 @@ class BitConstraintBQM(BinaryQuadraticModel):
     '''
 
     Examples:
-    Here demonstrates applying several 2-hot constraint on FMBQM
+    Here demonstrates applying a 2-hot constraint on a BQM.
     >>> import numpy as np
     >>> import neal
     >>> import dimod
