@@ -176,15 +176,16 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         if init:
             self.fm.init_params()
         self._check_vartype(x)
-        self.fm.train(x, y, num_epoch, learning_rate, schedule=schedule)
         if self.vartype == Vartype.SPIN:
-            h, J, b = self._fm_to_ising()
-            self.offset = b
-            for i in range(self.fm.input_size):
-                self.linear[i] = h[i]
-                for j in range(i+1, self.fm.input_size):
-                    self.quadratic[(i,j)] = J.get((i,j), 0)
+            self.fm.train(x, y, num_epoch, learning_rate, schedule=schedule)
         elif self.vartype == Vartype.BINARY:
+            self.fm.train(2*x-1, y, num_epoch, learning_rate, schedule=schedule)
+        h, J, b = self._fm_to_ising()
+        self.offset = b
+        for i in range(self.fm.input_size):
+            self.linear[i] = h[i]
+            for j in range(i+1, self.fm.input_size):
+                self.quadratic[(i,j)] = J.get((i,j), 0)
             Q, b = self._fm_to_qubo()
             self.offset = b
             for i in range(self.fm.input_size):
@@ -223,10 +224,6 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
 
         """
         b, h, J = self.fm.get_bhQ()
-        if self.vartype is Vartype.BINARY:
-            b = b + np.sum(h)/2 + np.sum(J)/4
-            h = (2*h + np.sum(J, axis=0) + np.sum(J, axis=1))/4.0
-            J = J/4.0
         if scaling:
             scaling_factor = max(np.max(np.abs(h)), np.max(np.abs(J)))
             b /= scaling_factor
@@ -242,10 +239,9 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
                 Flag for automatic scaling.
         """
         b, h, Q = self.fm.get_bhQ()
-        if self.vartype is Vartype.SPIN:
-            b = b - np.sum(h) + np.sum(Q)
-            h = 2 * (h - np.sum(Q, axis=0) - np.sum(Q, axis=1))
-            Q = 4 * Q
+        b = b - np.sum(h) + np.sum(Q)
+        h = 2 * (h - np.sum(Q, axis=0) - np.sum(Q, axis=1))
+        Q = 4 * Q
         Q[np.diag_indices(len(Q))] = h
         if scaling:
             scaling_factor = np.max(np.abs(Q))

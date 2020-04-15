@@ -54,7 +54,7 @@ class QuadraticLayer(gluon.nn.HybridBlock):
             else:
                 adam = mx.optimizer.Adam(learning_rate)
             self.trainer = gluon.Trainer(self.collect_params(), adam)
-        elif self.trainer.lr_scheduler is None:
+        elif self.trainer.optimizer.lr_scheduler is None:
             self.trainer.set_learning_rate(learning_rate)
         for epoch in range(num_epoch):
             with mx.autograd.record():
