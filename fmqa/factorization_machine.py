@@ -11,10 +11,10 @@ import mxnet as mx
 from   mxnet import nd
 from   mxnet import gluon
 
-def triu_mask(input_size, F=nd):
+def triu_mask(input_size, F=nd, ctx=None):
     """Generate a square matrix with its upper trianguler elements being 1 and others 0.
     """
-    mask = F.expand_dims(F.arange(input_size), axis=0)
+    mask = F.expand_dims(F.arange(input_size, ctx=ctx), axis=0)
     return (F.transpose(mask) < mask) * 1.0
 
 def VtoQ(V, F=nd):
@@ -22,7 +22,7 @@ def VtoQ(V, F=nd):
     """
     input_size = V.shape[1]
     Q = F.dot(F.transpose(V), V) # (d,d)
-    return Q * triu_mask(input_size, F)
+    return Q * triu_mask(input_size, F, ctx=V.context)
 
 class QuadraticLayer(gluon.nn.HybridBlock):
     """A neural network layer which applies quadratic function on the input.
@@ -34,23 +34,23 @@ class QuadraticLayer(gluon.nn.HybridBlock):
         super().__init__(**kwargs)
         self.trainer = None
 
-    def init_params(self, initializer=mx.init.Normal()):
+    def init_params(self, ctx=None, initializer=mx.init.Normal()):
         """Initialize all parameters
 
         Args:
             initializer(mx.init.Initializer):
                 MXNet initializer object. [Default=mxnet.init.Normal()]
         """
-        self.initialize(initializer, force_reinit=True)
+        self.initialize(initializer, ctx=ctx, force_reinit=True)
 
     def train(self, x, y, num_epoch=1000, learning_rate=1.0e-2, schedule=None):
         """Training of the regression model using Adam optimizer.
         """
-        x, y = nd.array(x), nd.array(y)
+        #x, y = nd.array(x), nd.array(y)
         batchsize = x.shape[0]
         if None == self.trainer or schedule is not None:
             if schedule is not None:
-                adam = mx.optimizer.Adam(lr_scheduler=schedule)
+                adam = mx.optimizer.Adam(learning_rate=None, lr_scheduler=schedule)
             else:
                 adam = mx.optimizer.Adam(learning_rate)
             self.trainer = gluon.Trainer(self.collect_params(), adam)

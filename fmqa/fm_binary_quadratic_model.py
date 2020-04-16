@@ -3,6 +3,7 @@ Trainable Binary Quadratic Model based on Factorization Machine (FMBQM)
 """
 
 import numpy as np
+import mxnet as mx
 from mxnet import nd
 from dimod.binary_quadratic_model import BinaryQuadraticModel
 from dimod.vartypes import Vartype, as_vartype
@@ -109,11 +110,12 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             Name of activation function applied on FM output: "identity", "sigmoid", or "tanh".
     """
 
-    def __init__(self, input_size, vartype, act="identity", edgelist=[], **kwargs):
+    def __init__(self, input_size, vartype, act="identity", edgelist=[], ctx=mx.cpu(), **kwargs):
         # Initialization of BQM
         init_linear = {i: 0.0  for i in range(input_size)}
         init_quadratic  = {}
         init_offset = 0.0
+        self.ctx = ctx
         super().__init__(init_linear,  init_quadratic, init_offset, vartype, **kwargs)
         if len(edgelist) == 0:
             self.fm = FactorizationMachine(input_size, act=act, **kwargs)
@@ -127,7 +129,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         return self._fm_to_ising()
 
     @classmethod
-    def from_data(cls, x, y, act="identity", num_epoch=1000, learning_rate=1.0e-2, schedule=None, **kwargs):
+    def from_data(cls, x, y, act="identity", num_epoch=1000, learning_rate=1.0e-2, schedule=None, gpu=False, factorization_size=None, **kwargs):
         """Create a binary quadratic model by FM regression model trained on the provided data.
 
         Args:
@@ -154,11 +156,29 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             raise ValueError("input data should BINARY or SPIN vectors")
 
         input_size = x.shape[-1]
-        fmbqm = cls(input_size, vartype, act, **kwargs)
-        fmbqm.train(x, y, num_epoch, learning_rate, schedule=schedule, init=True)
+        ctx = mx.gpu() if gpu else mx.cpu()
+        if factorization_size == None:
+            if x.shape[0] > 10:
+                cv_fold = 3
+                blocks = np.random.permutation(x.shape[0])[:x.shape[0]//cv_fold*cv_fold].reshape((3,-1))
+                sizes = np.logspace(np.log10(3),np.log10(x.shape[1]),5,dtype=int)
+                cverrors = np.zeros(len(sizes))
+                for n in range(len(sizes)):
+                    _fmbqm = cls(input_size, vartype, act, factorization_size=sizes[n], ctx=ctx, **kwargs)
+                    for i in range(cv_fold):
+                        train_idx = np.concatenate([blocks[:i], blocks[i+1:]]).flatten()
+                        test_idx = blocks[i]
+                        _fmbqm.train(x[train_idx], y[train_idx], num_epoch, learning_rate, gpu=gpu, schedule=schedule, init=True)
+                        cverrors[n] += np.sum((_fmbqm.predict(x[test_idx]) - y[test_idx]) ** 2) ** .5
+                factorization_size = sizes[np.argmin(cverrors)]
+            else:
+                factorization_size = 8
+
+        fmbqm = cls(input_size, vartype, act, factorization_size=factorization_size, ctx=ctx, **kwargs)
+        fmbqm.train(x, y, num_epoch, learning_rate, gpu=gpu, schedule=schedule, init=True)
         return fmbqm
 
-    def train(self, x, y, num_epoch=1000, learning_rate=1.0e-2, schedule=None, init=False):
+    def train(self, x, y, num_epoch=1000, learning_rate=1.0e-2, gpu=False, schedule=None, init=False):
         """Train FM regression model on the provided data.
 
         Args:
@@ -173,9 +193,11 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             init (bool, optional):
                 Initialize or not before training.
         """
+        ctx = mx.gpu() if gpu else mx.cpu()
         if init:
-            self.fm.init_params()
+            self.fm.init_params(ctx=ctx)
         self._check_vartype(x)
+        x, y = nd.array(x, ctx=ctx), nd.array(y, ctx=ctx)
         if self.vartype == Vartype.SPIN:
             self.fm.train(x, y, num_epoch, learning_rate, schedule=schedule)
         elif self.vartype == Vartype.BINARY:
@@ -204,7 +226,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             :obj:`numppy.ndarray`: Predicted values.
         """
         self._check_vartype(x)
-        x = nd.array(x)
+        x = nd.array(x, ctx=self.ctx)
         if len(x.shape) == 1:
             x = nd.expand_dims(x, axis=0)
         return self.fm(x).asnumpy()
