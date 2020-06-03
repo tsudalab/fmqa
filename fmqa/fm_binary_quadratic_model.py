@@ -229,7 +229,10 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         x = nd.array(x, ctx=self.ctx)
         if len(x.shape) == 1:
             x = nd.expand_dims(x, axis=0)
-        return self.fm(x).asnumpy()
+        if self.vartype == Vartype.SPIN:
+            return self.fm(x).asnumpy()
+        elif self.vartype == Vartype.BINARY:
+            return self.fm(2*x-1).asnumpy()
 
     def _check_vartype(self, x):
         if (self.vartype is Vartype.BINARY) and np.all((1 == x) | (0 == x)) or \
