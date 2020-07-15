@@ -110,7 +110,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             Name of activation function applied on FM output: "identity", "sigmoid", or "tanh".
     """
 
-    def __init__(self, input_size, vartype, act="identity", edgelist=[], ctx=mx.cpu(), **kwargs):
+    def __init__(self, input_size, vartype, act="identity", nodelist=[], edgelist=[], ctx=mx.cpu(), **kwargs):
         # Initialization of BQM
         init_linear = {i: 0.0  for i in range(input_size)}
         init_quadratic  = {}
@@ -120,7 +120,7 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         if len(edgelist) == 0:
             self.fm = FactorizationMachine(input_size, act=act, **kwargs)
         else:
-            self.fm = SparseFactorizationMachine(input_size, act=act, edgelist=edgelist, **kwargs)
+            self.fm = SparseFactorizationMachine(input_size, act=act, nodelist=nodelist, edgelist=edgelist, **kwargs)
 
     def to_qubo(self):
         return self._fm_to_qubo()
@@ -249,7 +249,17 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
 
         """
         b, h, J = self.fm.get_bhQ()
-        if scaling:
+        if isinstance(h, dict):
+            if scaling:
+                values = list(h.values()) + list(J.values())
+                scaling_factor = np.max(np.abs(values))
+                b /= scaling_factor
+                for k in h.keys():
+                    h[k] /= scaling_factor
+                for k in J.keys():
+                    J[k] /= scaling_factor
+            return h, J, b
+        elif scaling:
             scaling_factor = max(np.max(np.abs(h)), np.max(np.abs(J)))
             b /= scaling_factor
             h /= scaling_factor
@@ -264,6 +274,18 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
                 Flag for automatic scaling.
         """
         b, h, Q = self.fm.get_bhQ()
+        if isinstance(h, dict):
+            b = b - np.sum(list(h.values())) + np.sum(list(Q.values()))
+            h = {k: 2 * (h[k] - sum([Q[p] for p in Q.keys() if k in p])) for k in h.keys()}
+            Q = {k: 4 * Q[k] for k in Q.keys() if Q[k] != 0}
+            for k in h.keys():
+                Q[k, k] = h[k]
+            if scaling:
+                scaling_factor = np.max(np.abs(list(Q.values())))
+                b /= scaling_factor
+                for k in Q.keys():
+                    Q[k] /= scaling_factor
+            return Q, b
         b = b - np.sum(h) + np.sum(Q)
         h = 2 * (h - np.sum(Q, axis=0) - np.sum(Q, axis=1))
         Q = 4 * Q

@@ -127,13 +127,18 @@ class SparseFactorizationMachine(FactorizationMachine):
         **kwargs:
     """
 
-    def __init__(self, input_size, factorization_size=8, act="identity", edgelist=[], **kwargs):
+    def __init__(self, input_size, factorization_size=8, act="identity", nodelist=[], edgelist=[], **kwargs):
         super().__init__(input_size, factorization_size, act, **kwargs)
+        node_mapping = {}
+        for i in range(input_size):
+            node_mapping[i] = nodelist[i]
         adjmask = np.zeros((input_size, input_size))
-        for e in edgelist:
-            a,b = e
-            if a < input_size and b < input_size:
-                adjmask[a,b] = adjmask[b,a] = 1
+        for i in range(input_size):
+            for j in range(i, input_size):
+                a, b = node_mapping[i], node_mapping[j]
+                if (a,b) in edgelist:
+                    adjmask[i,j] = adjmask[j,i] = 1
+        self.node_mapping = node_mapping
         self.adjmask = adjmask
 
     def hybrid_forward(self, F, x, h, V, bias):
@@ -155,6 +160,10 @@ class SparseFactorizationMachine(FactorizationMachine):
     def get_bhQ(self):
         """Returns linear and quadratic coefficients.
         """
+        h = self.h.data().asnumpy()
+        h = {self.node_mapping[i]: h[i] for i in range(self.input_size)}
         V = nd.zeros(self.V.shape) if self.factorization_size is 0 else self.V.data()
         Q = VtoQ(V, nd) * mx.nd.array(self.adjmask)
-        return self.bias.data().asscalar(), self.h.data().asnumpy(), Q.asnumpy()
+        Q = Q.asnumpy()
+        Q = {(self.node_mapping[i], self.node_mapping[j]): Q[i,j] for i in range(self.input_size) for j in range(i+1, self.input_size) if Q[i,j] != 0}
+        return self.bias.data().asscalar(), h, Q
