@@ -98,14 +98,14 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
             for i in range(self.fm.input_size):
                 self.linear[i] = h[i]
                 for j in range(i+1, self.fm.input_size):
-                    self.quadratic[(i,j)] = J[(i,j)]
+                    self.quadratic[(i,j)] = J.get((i,j), 0)
         elif self.vartype == Vartype.BINARY:
             Q, b = self._fm_to_qubo()
             self.offset = b
             for i in range(self.fm.input_size):
                 self.linear[i] = Q[(i,i)]
                 for j in range(i+1, self.fm.input_size):
-                    self.quadratic[(i,j)] = Q[(i,j)]
+                    self.quadratic[(i,j)] = Q.get((i,j), 0)
 
     def predict(self, x):
         """Predict target value by trained model.
