@@ -200,18 +200,18 @@ class FactorizationMachineBinaryQuadraticModel(BinaryQuadraticModel):
         x, y = nd.array(x, ctx=ctx), nd.array(y, ctx=ctx)
         if self.vartype == Vartype.SPIN:
             self.fm.train(x, y, num_epoch, learning_rate, schedule=schedule)
+            h, J, b = self._fm_to_ising()
+            self.offset = b
+            for i in range(self.fm.input_size):
+                self.linear[i] = h.get(i, 0)
+                for j in range(i+1, self.fm.input_size):
+                    self.quadratic[(i,j)] = J.get((i,j), 0)
         elif self.vartype == Vartype.BINARY:
             self.fm.train(2*x-1, y, num_epoch, learning_rate, schedule=schedule)
-        h, J, b = self._fm_to_ising()
-        self.offset = b
-        for i in range(self.fm.input_size):
-            self.linear[i] = h[i]
-            for j in range(i+1, self.fm.input_size):
-                self.quadratic[(i,j)] = J.get((i,j), 0)
             Q, b = self._fm_to_qubo()
             self.offset = b
             for i in range(self.fm.input_size):
-                self.linear[i] = Q[(i,i)]
+                self.linear[i] = Q.get((i,i), 0)
                 for j in range(i+1, self.fm.input_size):
                     self.quadratic[(i,j)] = Q.get((i,j), 0)
 
