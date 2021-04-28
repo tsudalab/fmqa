@@ -104,11 +104,20 @@ The fmqa package is licensed under the MIT "Expat" License.
 If you use this package in your work, please cite:
 
 ```
-@article{kitai2019expanding,
-  title={Expanding the horizon of automated metamaterials discovery via quantum annealing},
-  author={Koki Kitai and Jiang Guo and Shenghong Ju and Shu Tanaka and Koji Tsuda and Junichiro Shiomi and Ryo Tamura},
-  journal={arXiv preprint arXiv:1902.06573},
-  year={2019}
+@article{PhysRevResearch.2.013319,
+  title = {Designing metamaterials with quantum annealing and factorization machines},
+  author = {Kitai, Koki and Guo, Jiang and Ju, Shenghong and Tanaka, Shu and Tsuda, Koji and Shiomi, Junichiro and Tamura, Ryo},
+  journal = {Phys. Rev. Research},
+  volume = {2},
+  issue = {1},
+  pages = {013319},
+  numpages = {10},
+  year = {2020},
+  month = {Mar},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevResearch.2.013319},
+  url = {https://link.aps.org/doi/10.1103/PhysRevResearch.2.013319}
 }
+
 ```
 
