@@ -10,7 +10,7 @@ setuptools.setup(
     packages=["fmqa"],
     install_requires=[
         "dimod",
-        "mxne==1.8.0",
+        "mxnet==1.8.0",
         "numpy>=1.15.0",
     ]
 )
