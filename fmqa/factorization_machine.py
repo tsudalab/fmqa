@@ -106,6 +106,6 @@ class FactorizationMachine(QuadraticLayer):
     def get_bhQ(self):
         """Returns linear and quadratic coefficients.
         """
-        V = nd.zeros(self.V.shape) if self.factorization_size is 0 else self.V.data()
+        V = nd.zeros(self.V.shape) if self.factorization_size == 0 else self.V.data()
         return self.bias.data().asscalar(), self.h.data().asnumpy(), VtoQ(V, nd).asnumpy()
 
